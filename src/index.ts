@@ -14,7 +14,7 @@ app.use(express.json());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
 app.use(queueRoutes);
 
-mongoose.connect('mongodb://localhost:27017/queue') // after localhost => mongo
+mongoose.connect('mongodb://mongo:27017/queue') // after localhost => mongo
   .then(() => {
     console.log('MongoDB connected');
     app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
