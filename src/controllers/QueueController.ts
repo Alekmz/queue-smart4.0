@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { Queue } from "../models/Queue";
+import { Queue } from "../models/QueueModel";
 
 interface CreateQueueDTO {
   name: string;
@@ -17,7 +17,7 @@ export async function addToQueue(
   }
 }
 
-export async function getNextQueueItem(req: Request, res: Response) {
+export async function getNextQueueItem(_: Request, res: Response) {
   try {
     const item = await Queue.findOne({
       status: { $in: ["waiting", "pending"] },

@@ -1,86 +1,81 @@
-import { Router } from 'express';
+import { Router } from "express";
 import {
   addToQueue,
   getNextQueueItem,
   acknowledgeQueueItem,
-  rejectQueueItem
-} from '../controllers/QueueController';
+  rejectQueueItem,
+} from "../controllers/QueueController";
 
 const router = Router();
 
-/**
- * @swagger
- * /queue:
- *   post:
- *     summary: Add item to the queue
- *     tags: [Queue]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *     responses:
- *       201:
- *         description: Item added
- */
-router.post('/queue', addToQueue);
+router.post(
+  "/queue",
+  /**
+   * #swagger.parameters['body'] = {
+   *   in: 'body',
+   *   description: 'Item data.',
+   * #swagger.parameters['name'] = {
+     
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Queue"
+            }
+          
+    }
+   *   required: true,
+   *   schema: {
+   *     $ref: '#/components/schema/Queue' // Reference a defined schema
+   *   }
+   * }
+   */
+  addToQueue
+);
 
-/**
- * @swagger
- * /queue/next:
- *   get:
- *     summary: Get next item in the queue
- *     tags: [Queue]
- *     responses:
- *       200:
- *         description: Next queue item
- *       404:
- *         description: No item available
- */
-router.get('/queue/next', getNextQueueItem);
+// #swagger.tags = ['Queue']
+router.get(
+  "/queue/next",
+  /* 
+    #swagger.summary = 'Get next item in the queue'
+    #swagger.description = 'Returns the next item, prioritizing waiting over pending'
+    #swagger.responses[200] = { description: 'Next queue item' }
+    #swagger.responses[404] = { description: 'No item available' }
+  */
+  getNextQueueItem
+);
 
-/**
- * @swagger
- * /queue/{id}/ack:
- *   post:
- *     summary: Acknowledge item and remove from queue
- *     tags: [Queue]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Item acknowledged
- *       404:
- *         description: Item not found
- */
-router.post('/queue/:id/ack', acknowledgeQueueItem);
+// #swagger.tags = ['Queue']
+router.post(
+  "/queue/:id/ack",
+  /* 
+    #swagger.summary = 'Acknowledge item'
+    #swagger.parameters['id'] = {
+      in: 'path',
+      required: true,
+      type: 'string',
+      description: 'Queue item ID'
+    }
+    #swagger.responses[200] = { description: 'Item acknowledged' }
+    #swagger.responses[404] = { description: 'Item not found' }
+  */
+  acknowledgeQueueItem
+);
 
-/**
- * @swagger
- * /queue/{id}/nack:
- *   post:
- *     summary: Reject item and return it to the queue
- *     tags: [Queue]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Item returned to queue
- *       404:
- *         description: Item not found
- */
-router.post('/queue/:id/nack', rejectQueueItem);
+// #swagger.tags = ['Queue']
+router.post(
+  "/queue/:id/nack",
+  /* 
+    #swagger.summary = 'Reject item'
+    #swagger.parameters['id'] = {
+      in: 'path',
+      required: true,
+      type: 'string',
+      description: 'Queue item ID'
+    }
+    #swagger.responses[200] = { description: 'Item returned to queue' }
+    #swagger.responses[404] = { description: 'Item not found' }
+  */
+  rejectQueueItem
+);
 
 export default router;

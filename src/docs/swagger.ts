@@ -1,13 +1,31 @@
-import swaggerJsdoc from 'swagger-jsdoc';
+// filepath: /Users/alexmuniz/Desktop/queue/src/docs/swagger.ts
+const swaggerAutogen = require("swagger-autogen")();
 
-export const swaggerOptions: swaggerJsdoc.Options = {
-  definition: {
-    openapi: '3.0.0',
-    info: {
-      title: 'API de Gerenciamento de Filas',
-      version: '1.0.0',
-      description: 'Documentação da API para gerenciamento de filas'
-    }
+const doc = {
+  info: {
+    title: "Queue Management API",
+    description: "API for managing queue items",
   },
-  apis: ['./src/routes/*.ts']
+  host: "localhost:3000",
+  schemes: ["http"],
+  components: {
+    schemas: {
+      Queue: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Name of the queue item",
+            example: "Sample Queue Item",
+          }
+        },
+        required: ["name", "status"],
+      },
+    },
+  },
 };
+
+const outputFile = "./src/docs/swagger-output.json";
+const endpointsFiles = ["./src/index.ts"];
+
+swaggerAutogen(outputFile, endpointsFiles, doc);

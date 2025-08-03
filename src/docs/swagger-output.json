@@ -1,0 +1,122 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Queue Management API",
+    "description": "API for managing queue items",
+    "version": "1.0.0"
+  },
+  "host": "localhost:3000",
+  "basePath": "/",
+  "schemes": [
+    "http"
+  ],
+  "paths": {
+    "/queue": {
+      "post": {
+        "description": "",
+        "responses": {
+          "default": {
+            "description": ""
+          }
+        },
+        "parameters":[
+          {
+            "name": "Queue",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Queue"
+            }
+          }
+        ]
+      }
+    },
+    "/queue/next": {
+      "get": {
+        "summary": "Get next item in the queue",
+        "description": "Returns the next item, prioritizing waiting over pending",
+        "responses": {
+          "200": {
+            "description": "Next queue item"
+          },
+          "404": {
+            "description": "No item available"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/queue/{id}/ack": {
+      "post": {
+        "summary": "Acknowledge item",
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Queue item ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item acknowledged"
+          },
+          "404": {
+            "description": "Item not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    },
+    "/queue/{id}/nack": {
+      "post": {
+        "summary": "Reject item",
+        "description": "",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string",
+            "description": "Queue item ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Item returned to queue"
+          },
+          "404": {
+            "description": "Item not found"
+          },
+          "500": {
+            "description": "Internal Server Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Queue": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the queue item",
+            "example": "Sample Queue Item"
+          }
+        },
+        "required": [
+          "name",
+          "status"
+        ]
+      }
+    }
+  }
+}
