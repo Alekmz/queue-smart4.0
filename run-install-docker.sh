@@ -3,11 +3,28 @@
 set -e
 
 echo "🔍 Atualizando pacotes..."
-sudo yum update -y
+sudo apt update && sudo apt upgrade -y
 
-echo "🐳 Instalando Docker..."
-sudo amazon-linux-extras enable docker
-sudo yum install -y docker
+echo "🐳 Instalando dependências..."
+sudo apt install -y ca-certificates curl gnupg lsb-release
+
+echo "🔐 Adicionando chave GPG oficial do Docker..."
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo "📦 Adicionando repositório do Docker..."
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(lsb_release -cs) stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+echo "🔄 Atualizando pacotes novamente..."
+sudo apt update
+
+echo "🐳 Instalando Docker Engine e Docker Compose plugin..."
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 echo "🔧 Iniciando e habilitando Docker..."
 sudo systemctl start docker
@@ -15,11 +32,6 @@ sudo systemctl enable docker
 
 echo "👤 Adicionando usuário atual ao grupo docker..."
 sudo usermod -aG docker $USER
-
-echo "📦 Instalando Docker Compose v2 (plugin)..."
-DOCKER_COMPOSE_VERSION="v2.27.0" # última versão estável conhecida em jul/2025
-sudo curl -SL https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 echo "✅ Verificações..."
 docker --version
