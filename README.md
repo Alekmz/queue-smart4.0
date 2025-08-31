@@ -182,3 +182,6 @@ O simulador processa itens automaticamente através de 7 etapas:
 ## 📝 Licença
 
 ISC License
+
+
+
