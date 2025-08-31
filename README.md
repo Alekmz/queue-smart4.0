@@ -1,125 +1,184 @@
 
-# Backend Node.js com MongoDB via Docker
+# Queue Smart 4.0
 
-Este projeto é um backend simples usando **Node.js (Express)** com **MongoDB**, containerizado com **Docker** e orquestrado via **Docker Compose**.
+Sistema inteligente de gerenciamento de filas com simulação de processos industriais em tempo real.
 
----
+## 🚀 Tecnologias
 
-## Estrutura do Projeto
+- **Backend**: Node.js + Express + TypeScript
+- **Banco de Dados**: MongoDB
+- **Containerização**: Docker + Docker Compose
+- **Documentação**: OpenAPI 3.0 + Swagger UI
+- **Testes**: Jest + Supertest + MongoDB Memory Server
 
-.
-├── Dockerfile
-├── docker-compose.yml
-├── package.json
-├── src/
-│   └── index.js (ou app.js)
-├── install-docker.sh
-├── run.sh
-└── README.md
+## 📁 Arquitetura
 
----
+```
+src/
+├── config/          # Configurações (ambiente, simulação)
+├── domain/          # Enums e tipos de domínio
+├── models/          # Modelos MongoDB
+├── routes/          # Rotas da API
+├── services/        # Lógica de negócio (Simulator)
+├── utils/           # Utilitários (tempo, erros)
+├── server.ts        # Servidor principal
+└── swagger.ts       # Configuração Swagger
 
-## 📦 Pré-requisitos
+openapi/
+└── queue.yaml       # Especificação OpenAPI consolidada
+```
 
-- Uma máquina Linux (ex: Amazon EC2 rodando Amazon Linux 2)
-- Acesso sudo
-- Git instalado (opcional, mas recomendado)
+## 🏃‍♂️ Como executar
 
----
-
-## ⚙️ Instalação do Docker e Docker Compose (em EC2 Amazon Linux)
-
-Use o script abaixo para instalar **Docker** e **Docker Compose v2 (plugin oficial)**:
-
-### 🔧 1. Dê permissão e execute o script:
+### Desenvolvimento Local
 
 ```bash
-chmod +x install-docker.sh
-./install-docker.sh
+# Instalar dependências
+npm install
 
-Após a execução, saia e entre novamente no terminal ou execute:
+# Executar em modo desenvolvimento
+npm run dev
 
-exec $SHELL
+# Construir para produção
+npm run build
 
+# Executar produção
+npm start
+```
 
+### Docker
 
-⸻
+```bash
+# Subir com Docker Compose
+docker-compose up -d
 
-🚀 Subindo o Projeto com Docker
+# Ver logs
+docker-compose logs -f backend
+```
 
-Utilize o script run.sh para derrubar containers antigos, limpar imagens e subir o backend com MongoDB:
+## 📚 Documentação da API
 
-▶️ 1. Dê permissão e execute:
+- **Swagger UI**: http://localhost:3000/docs
+- **OpenAPI YAML**: http://localhost:3000/openapi.yaml
 
-chmod +x run.sh
-./run.sh
+## 🔌 Endpoints Principais
 
-Esse script executa:
-	•	docker compose down -v — Para containers e remove volumes
-	•	docker image prune -f — Remove imagens órfãs
-	•	docker compose up --build — Sobe os serviços com rebuild
+### Health Check
+```bash
+GET /health
+```
 
-⸻
+### Fila de Processamento
 
-🐳 Docker Compose: Serviços
+#### Enfileirar item
+```bash
+curl -X POST http://localhost:3000/queue/items \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "payload": {"orderId":"ABC-123","sku":"KIT-01"},
+    "callbackUrl":"http://localhost:3333/callback"
+  }'
+```
 
-O projeto define os seguintes containers:
+#### Consultar status geral
+```bash
+curl http://localhost:3000/queue/status
+```
 
-Serviço	Descrição	Porta Exposta
-express-app	Backend Node.js/Express	3000:3000
-mongo-db	Banco de dados MongoDB	27017:27017
+#### Listar itens
+```bash
+curl "http://localhost:3000/queue/items?status=PENDING&limit=10"
+```
 
+#### Detalhes de um item
+```bash
+curl http://localhost:3000/queue/items/<ID>
+```
 
-⸻
+#### Posição na fila
+```bash
+curl http://localhost:3000/queue/items/<ID>/position
+```
 
-🔗 Conexão com o MongoDB
+## ⚙️ Configuração
 
-A conexão com o MongoDB no backend deve utilizar:
+### Variáveis de Ambiente
 
-mongoose.connect(process.env.MONGO_URL || 'mongodb://mongo:27017/queue');
+```bash
+PORT=3000                           # Porta do servidor
+MONGO_URL=mongodb://mongo:27017/queue  # URL do MongoDB
+NODE_ENV=development               # Ambiente (dev/test/prod)
+```
 
-No docker-compose.yml, a variável de ambiente já está configurada:
+### Configuração de Simulação
 
-environment:
-  - MONGO_URL=mongodb://mongo:27017/queue
+Os tempos de processamento podem ser ajustados em `src/config/sim.ts`:
 
-⚠️ Não utilize 127.0.0.1 ou localhost dentro de containers para se conectar ao MongoDB. Use mongo que é o nome do serviço.
+- **RECEIVED**: 1s
+- **PICKING**: 5s  
+- **ASSEMBLY**: 10s
+- **QA**: 4s
+- **PACKING**: 3s
+- **EXPEDITION**: 2s
 
-⸻
+Em ambiente de teste (`NODE_ENV=test`), os tempos são reduzidos para acelerar os testes.
 
-✅ Verificando o funcionamento
+## 🧪 Testes
 
-Se tudo estiver correto, você verá:
+```bash
+# Executar todos os testes
+npm test
 
-MongoDB connected
-Server listening on port 3000
+# Modo watch
+npm run test:watch
 
+# Com cobertura
+npm run test:coverage
+```
 
-⸻
+### Tipos de Teste
 
-🧼 Parar e remover containers
+- **Testes de Integração**: Endpoints da API
+- **Testes de Simulação**: Motor de processamento
+- **Validação**: ObjectId, status codes, respostas
 
-Para parar e remover tudo manualmente:
+## 🔄 Motor de Simulação
 
-docker compose down -v
+O simulador processa itens automaticamente através de 7 etapas:
 
+1. **RECEIVED** → Item recebido
+2. **PICKING** → Coleta de materiais
+3. **ASSEMBLY** → Montagem
+4. **QA** → Controle de qualidade
+5. **PACKING** → Embalagem
+6. **EXPEDITION** → Expedição
+7. **DONE** → Concluído
 
-⸻
+### Características
 
-🧪 Comandos úteis
+- ✅ **Loop único e seguro** - Apenas uma instância por processo
+- ✅ **Claim automático** - Processa primeiro item PENDING por `createdAt`
+- ✅ **Progresso em tempo real** - Atualiza `progress` e `etaSeconds`
+- ✅ **Callback automático** - Notifica `callbackUrl` ao finalizar
+- ✅ **Retry com backoff** - Re-tenta callback em caso de falha
 
-Ação	Comando
-Ver containers rodando	docker ps
-Entrar no container do backend	docker exec -it express-app sh
-Entrar no Mongo via shell	docker exec -it mongo-db mongosh
-Limpar imagens órfãs	docker image prune -f
-Ver logs do backend	docker logs -f express-app
+## 🐛 Troubleshooting
 
+### Simulador não inicia
+- Verificar conexão MongoDB
+- Checar logs do servidor
+- Confirmar que `sim.start()` é chamado após conexão
 
-⸻
+### GET por ID retorna 500
+- Validar formato do ObjectId (24 caracteres hex)
+- Verificar se o item existe no banco
+- Checar logs de erro
 
-🤝 Licença
+### Item não avança nas etapas
+- Verificar se o simulador está rodando
+- Confirmar que há apenas uma instância
+- Checar logs de processamento
 
-Este projeto é open-source. Use livremente e modifique conforme necessário.
+## 📝 Licença
 
----
+ISC License

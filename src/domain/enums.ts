@@ -1,0 +1,16 @@
+export enum ItemStatus {
+  PENDING = "PENDING",
+  PROCESSING = "PROCESSING",
+  COMPLETED = "COMPLETED",
+  FAILED = "FAILED",
+}
+
+export enum Stage {
+  RECEIVED = "RECEIVED",
+  PICKING = "PICKING",
+  ASSEMBLY = "ASSEMBLY",
+  QA = "QA",
+  PACKING = "PACKING",
+  EXPEDITION = "EXPEDITION",
+  DONE = "DONE",
+}

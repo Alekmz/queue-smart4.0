@@ -1,0 +1,380 @@
+openapi: 3.0.3
+info:
+  title: Queue Smart 4.0 API
+  version: "2.0.0"
+  description: API para gerenciamento de filas inteligentes com simulação de processos industriais
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: http://localhost:3000
+    description: Docker server
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Verifica o status da aplicação
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "ok"
+                  time:
+                    type: string
+                    format: date-time
+                  uptime:
+                    type: number
+                  environment:
+                    type: string
+
+  /queue/items:
+    post:
+      tags: [Queue]
+      summary: Enfileira novo item
+      description: Adiciona um novo item à fila de processamento
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [callbackUrl]
+              properties:
+                payload:
+                  type: object
+                  additionalProperties: true
+                  description: Dados do item a ser processado
+                  example: {"orderId": "ABC-123", "sku": "KIT-01"}
+                callbackUrl:
+                  type: string
+                  format: uri
+                  description: URL para callback quando processamento for concluído
+                  example: "http://localhost:3333/callback"
+      responses:
+        "201":
+          description: Item criado com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    description: ID único do item criado
+        "400":
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    
+    get:
+      tags: [Queue]
+      summary: Lista itens da fila
+      description: Retorna lista de itens com filtros opcionais
+      parameters:
+        - name: status
+          in: query
+          description: Filtrar por status
+          schema:
+            type: string
+            enum: [PENDING, PROCESSING, COMPLETED, FAILED]
+        - name: limit
+          in: query
+          description: Limite de itens retornados
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+      responses:
+        "200":
+          description: Lista de itens
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/QueueItem'
+
+  /queue/items/{id}:
+    get:
+      tags: [Queue]
+      summary: Obtém detalhes de um item
+      description: Retorna informações completas de um item específico
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do item
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+      responses:
+        "200":
+          description: Item encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueItem'
+        "400":
+          description: ID inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Item não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /queue/items/{id}/position:
+    get:
+      tags: [Queue]
+      summary: Obtém posição do item na fila
+      description: Retorna a posição atual do item na fila de processamento
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID do item
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+      responses:
+        "200":
+          description: Posição do item
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  position:
+                    type: integer
+                    description: Posição na fila (0 = processando/concluído)
+                    example: 3
+                  status:
+                    type: string
+                    enum: [PENDING, PROCESSING, COMPLETED, FAILED]
+        "400":
+          description: ID inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Item não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /queue/status:
+    get:
+      tags: [Queue]
+      summary: Status geral da fila
+      description: Retorna informações sobre o estado atual da fila e processamento
+      responses:
+        "200":
+          description: Status da fila
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  processing:
+                    $ref: '#/components/schemas/QueueItem'
+                    nullable: true
+                  queueSize:
+                    type: integer
+                    description: Número de itens pendentes
+                  averageItemSeconds:
+                    type: integer
+                    description: Tempo médio de processamento em segundos
+                  currentItemEta:
+                    type: integer
+                    nullable: true
+                    description: Tempo estimado para conclusão do item atual
+
+  /queue/status/detailed:
+    get:
+      tags: [Queue]
+      summary: Status detalhado do simulador
+      description: Retorna informações detalhadas sobre todos os itens e seus status
+      responses:
+        "200":
+          description: Status detalhado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  counts:
+                    type: object
+                    properties:
+                      pending:
+                        type: integer
+                        description: Número de itens pendentes
+                      processing:
+                        type: integer
+                        description: Número de itens em processamento
+                      completed:
+                        type: integer
+                        description: Número de itens concluídos
+                      failed:
+                        type: integer
+                        description: Número de itens com falha
+                  processingItems:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        _id:
+                          type: string
+                        stage:
+                          type: string
+                        progress:
+                          type: integer
+                        lockedBy:
+                          type: string
+                          nullable: true
+                        lockedAt:
+                          type: string
+                          format: date-time
+                          nullable: true
+                        createdAt:
+                          type: string
+                          format: date-time
+
+  /queue/reset:
+    post:
+      tags: [Queue]
+      summary: Resetar simulador
+      description: Reseta itens travados em PROCESSING para PENDING (desenvolvimento/testes)
+      responses:
+        "200":
+          description: Simulador resetado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Simulador resetado com sucesso"
+                  resetCount:
+                    type: integer
+                    description: Número de itens resetados
+                  timestamp:
+                    type: string
+                    format: date-time
+
+components:
+  schemas:
+    QueueItem:
+      type: object
+      properties:
+        _id:
+          type: string
+          description: ID único do item
+        payload:
+          type: object
+          additionalProperties: true
+          description: Dados do item
+        callbackUrl:
+          type: string
+          format: uri
+          description: URL para callback
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, FAILED]
+          description: Status atual do item
+        stage:
+          type: string
+          enum: [RECEIVED, PICKING, ASSEMBLY, QA, PACKING, EXPEDITION, DONE]
+          description: Etapa atual do processamento
+        progress:
+          type: integer
+          minimum: 0
+          maximum: 100
+          description: Progresso do processamento em porcentagem
+        etaSeconds:
+          type: integer
+          nullable: true
+          description: Tempo estimado para conclusão em segundos
+        lockedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Momento em que o item foi bloqueado para processamento
+        lockedBy:
+          type: string
+          nullable: true
+          description: Identificador do processador
+        stageStartedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Momento em que a etapa atual foi iniciada
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              stage:
+                type: string
+                enum: [RECEIVED, PICKING, ASSEMBLY, QA, PACKING, EXPEDITION, DONE]
+              startedAt:
+                type: string
+                format: date-time
+              finishedAt:
+                type: string
+                format: date-time
+                nullable: true
+        lastCallbackAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Momento do último callback
+        callbackTries:
+          type: integer
+          minimum: 0
+          description: Número de tentativas de callback
+        createdAt:
+          type: string
+          format: date-time
+          description: Momento de criação
+        updatedAt:
+          type: string
+          format: date-time
+          description: Última atualização
+      required: [payload, callbackUrl, status, stage, progress]
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Mensagem de erro
+        statusCode:
+          type: integer
+          description: Código HTTP do erro
+        timestamp:
+          type: string
+          format: date-time
+          description: Momento do erro
+
+tags:
+  - name: Health
+    description: Endpoints de verificação de saúde
+  - name: Queue
+    description: Gerenciamento de filas e processamento
