@@ -125,7 +125,7 @@ export const queueRouter = (sim: Simulator) => {
   // GET /items – listagem com filtros simples
   router.get('/items', async (req, res, next) => {
     try {
-      const { status, limit = 50 } = req.query;
+      const { status, limit = 50, order = 'oldest' } = req.query;
       const query: any = {};
       
       if (status) {
@@ -140,13 +140,48 @@ export const queueRouter = (sim: Simulator) => {
         }
       }
       
+      // Validar parâmetro de ordenação
+      const validOrders = ['oldest', 'newest'];
+      if (!validOrders.includes(order as string)) {
+        return res.status(400).json({ 
+          error: 'Invalid order value. Use "oldest" or "newest"',
+          statusCode: 400,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       const limitNum = Math.min(Math.max(Number(limit) || 50, 1), 100);
+      
+      // Definir ordenação baseada no parâmetro order
+      const sortOrder = order === 'newest' ? -1 : 1; // -1 para mais recentes primeiro, 1 para mais antigos primeiro
+      
       const items = await QueueItem.find(query)
-        .sort({ createdAt: 1 })
+        .sort({ createdAt: sortOrder })
         .limit(limitNum)
         .lean();
       
-      return res.json(items);
+      return res.json({
+        items,
+        total: items.length,
+        order: order,
+        limit: limitNum,
+        timestamp: new Date().toISOString()
+      });
+    } catch (e) { 
+      return next(e); 
+    }
+  });
+
+  // DELETE /items – limpar todos os itens do banco de dados
+  router.delete('/items', async (req, res, next) => {
+    try {
+      const result = await QueueItem.deleteMany({});
+      
+      return res.json({
+        message: 'Banco de dados limpo com sucesso',
+        deletedCount: result.deletedCount,
+        timestamp: new Date().toISOString()
+      });
     } catch (e) { 
       return next(e); 
     }

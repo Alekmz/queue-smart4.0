@@ -77,7 +77,7 @@ paths:
     get:
       tags: [Queue]
       summary: Lista itens da fila
-      description: Retorna lista de itens com filtros opcionais
+      description: Retorna lista de itens com filtros opcionais e ordenação
       parameters:
         - name: status
           in: query
@@ -93,15 +93,77 @@ paths:
             default: 50
             minimum: 1
             maximum: 100
+        - name: order
+          in: query
+          description: Ordem de exibição dos itens
+          schema:
+            type: string
+            enum: [oldest, newest]
+            default: oldest
+            example: newest
       responses:
         "200":
-          description: Lista de itens
+          description: Lista de itens com metadados
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/QueueItem'
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QueueItem'
+                    description: Lista de itens da fila
+                  total:
+                    type: integer
+                    description: Número total de itens retornados
+                  order:
+                    type: string
+                    enum: [oldest, newest]
+                    description: Ordem utilizada na listagem
+                  limit:
+                    type: integer
+                    description: Limite aplicado na consulta
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: Momento da consulta
+        "400":
+          description: Parâmetros inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Queue]
+      summary: Limpar banco de dados
+      description: Remove todos os itens da fila (útil para resetar o sistema para alunos)
+      responses:
+        "200":
+          description: Banco limpo com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Banco de dados limpo com sucesso"
+                  deletedCount:
+                    type: integer
+                    description: Número de itens removidos
+                    example: 150
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: Momento da operação
+        "500":
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
   /queue/items/{id}:
     get:
