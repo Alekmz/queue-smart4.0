@@ -1,5 +1,6 @@
 import axios from "axios";
 import { QueueItem, QueueItemDoc } from "../models/QueueItem";
+import { Estoque } from "../models/Estoque";
 import { ItemStatus, Stage } from "../domain/enums";
 import {
   STAGE_DURATIONS,
@@ -205,7 +206,16 @@ export class Simulator {
       item.progress = 100;
       item.etaSeconds = 0;
       await item.save();
-      await this.tryCallback(item);
+      
+      // Liberar peça do estoque quando pedido for completado (cor e op null)
+      if (item.estoquePos) {
+        await Estoque.findOneAndUpdate(
+          { pos: item.estoquePos },
+          { cor: null, op: null }
+        );
+      }
+      
+      await this.tryCallback(item); // aqui mandar os dados do slot
       // liberar loop
       this.processingId = null;
       this.currentStageDeadline = null;
@@ -249,6 +259,7 @@ export class Simulator {
           finishedAt: new Date().toISOString(),
           history: item.history,
           payload: item.payload ?? null,
+          // aqui vai os dadinhos do slot
         },
         { timeout: CALLBACK_TIMEOUT_MS }
       );

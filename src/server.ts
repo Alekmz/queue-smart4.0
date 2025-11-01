@@ -5,6 +5,8 @@ import morgan from 'morgan';
 import { config } from './config/env';
 import { setupSwagger } from './swagger';
 import { queueRouter } from './routes/queue';
+import { estoqueRouter } from './routes/estoque';
+import { expedicaoRouter } from './routes/expedicao';
 import healthRouter from './routes/health';
 import { errorHandler } from './utils/errors';
 import { Simulator } from './services/Simulator';
@@ -25,6 +27,12 @@ app.use('/health', healthRouter);
 // Simulador e rotas de fila
 const simulator = new Simulator();
 app.use('/queue', queueRouter(simulator));
+
+// Rotas de estoque
+app.use('/estoque', estoqueRouter);
+
+// Rotas de expedição
+app.use('/expedicao', expedicaoRouter);
 
 // Middleware de erro (deve ser o último)
 app.use(errorHandler);
