@@ -37,7 +37,16 @@ paths:
     post:
       tags: [Queue]
       summary: Enfileira novo item
-      description: Adiciona um novo item à fila de processamento
+      description: |
+        Adiciona um novo item à fila de processamento. 
+        
+        **Busca automática de peça por cor:**
+        - Se o payload contém `cor` ou `color`, o sistema busca automaticamente a primeira peça disponível no estoque com aquela cor
+        - Se não houver peça disponível, retorna erro 409
+        
+        **Vinculação manual de peça:**
+        - Pode informar `estoquePos` (1-26) para vincular uma peça específica
+        - O `estoquePos` tem prioridade sobre a busca automática por cor
       requestBody:
         required: true
         content:
@@ -49,13 +58,21 @@ paths:
                 payload:
                   type: object
                   additionalProperties: true
-                  description: Dados do item a ser processado
-                  example: {"orderId": "ABC-123", "sku": "KIT-01"}
+                  description: Dados do item a ser processado. Se contém `cor` ou `color`, busca automaticamente peça no estoque
+                  example: {"orderId": "ABC-123", "sku": "KIT-01", "cor": "azul"}
                 callbackUrl:
                   type: string
                   format: uri
                   description: URL para callback quando processamento for concluído
                   example: "http://localhost:3333/callback"
+                estoquePos:
+                  type: integer
+                  minimum: 1
+                  maximum: 26
+                  description: |
+                    (Opcional) Posição do estoque a vincular manualmente. 
+                    Se informado, tem prioridade sobre busca automática por cor.
+                    Se não informado, busca automaticamente por cor do payload.
       responses:
         "201":
           description: Item criado com sucesso
@@ -69,6 +86,12 @@ paths:
                     description: ID único do item criado
         "400":
           description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "409":
+          description: Conflito - não há peça disponível com a cor solicitada ou posição em uso
           content:
             application/json:
               schema:
@@ -339,6 +362,289 @@ paths:
                     type: string
                     format: date-time
 
+  /estoque:
+    get:
+      tags: [Estoque]
+      summary: Lista estoques
+      description: |
+        Retorna lista de todos os estoques. 
+        Use o parâmetro `color` para filtrar apenas peças disponíveis com aquela cor.
+      parameters:
+        - name: color
+          in: query
+          description: Filtrar por cor (retorna apenas peças disponíveis com aquela cor)
+          schema:
+            type: string
+            example: "azul"
+      responses:
+        "200":
+          description: Lista de estoques
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Estoque'
+
+  /estoque/{pos}:
+    get:
+      tags: [Estoque]
+      summary: Obtém estoque por posição
+      description: Retorna informações de uma posição específica do estoque
+      parameters:
+        - name: pos
+          in: path
+          required: true
+          description: Posição do estoque (1-26)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 26
+      responses:
+        "200":
+          description: Estoque encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estoque'
+        "400":
+          description: Posição inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Posição não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      tags: [Estoque]
+      summary: Criar ou atualizar posição de estoque
+      description: |
+        Cria ou atualiza uma posição de estoque (1-26).
+        Permite cadastrar peças manualmente informando a cor.
+        O campo `op` é opcional - se não informado, a peça fica disponível (op = null).
+        Se informar `op`, vincula a peça a um pedido existente.
+      parameters:
+        - name: pos
+          in: path
+          required: true
+          description: Posição do estoque (1-26)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 26
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cor]
+              properties:
+                cor:
+                  type: string
+                  description: Cor da peça
+                  example: "azul"
+                op:
+                  type: string
+                  nullable: true
+                  description: |
+                    (Opcional) ID do pedido para vincular a peça.
+                    Se não informado ou null, a peça fica disponível.
+                  example: "507f1f77bcf86cd799439011"
+      responses:
+        "200":
+          description: Posição criada/atualizada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Estoque'
+        "400":
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Pedido não encontrado (quando op é informado)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "409":
+          description: Posição está em uso por um pedido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags: [Estoque]
+      summary: Liberar posição de estoque
+      description: |
+        Libera uma posição de estoque, setando cor e op como null.
+        A posição fica disponível para novo cadastro.
+      parameters:
+        - name: pos
+          in: path
+          required: true
+          description: Posição do estoque (1-26)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 26
+      responses:
+        "200":
+          description: Posição liberada com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Posição liberada com sucesso"
+                  pos:
+                    type: integer
+                  cor:
+                    type: string
+                    nullable: true
+                  op:
+                    type: string
+                    nullable: true
+                  timestamp:
+                    type: string
+                    format: date-time
+        "404":
+          description: Posição não encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /expedicao:
+    get:
+      tags: [Expedição]
+      summary: Lista itens em expedição
+      description: Retorna todos os itens que estão no estágio de expedição
+      responses:
+        "200":
+          description: Lista de itens em expedição
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    pos:
+                      type: integer
+                      nullable: true
+                      description: Posição do estoque
+                      example: 5
+                    op:
+                      type: string
+                      description: ID do pedido
+                      example: "507f1f77bcf86cd799439011"
+
+  /expedicao/{pos}/liberar:
+    post:
+      tags: [Expedição]
+      summary: Liberar posição de expedição por posição
+      description: |
+        Libera uma posição de expedição por número de posição.
+        Marca o item como COMPLETED e ENTREGUE, e libera a peça do estoque (cor e op null).
+      parameters:
+        - name: pos
+          in: path
+          required: true
+          description: Posição do estoque (1-26)
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 26
+      responses:
+        "200":
+          description: Posição liberada com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Posição liberada com sucesso"
+                  pos:
+                    type: integer
+                  op:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+        "400":
+          description: Posição inválida
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Nenhum item em expedição encontrado para esta posição
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /expedicao/{op}:
+    delete:
+      tags: [Expedição]
+      summary: Liberar item de expedição por OP
+      description: |
+        Libera um item de expedição pelo ID do pedido (OP).
+        Marca o item como COMPLETED e ENTREGUE, e libera a peça do estoque (cor e op null).
+      parameters:
+        - name: op
+          in: path
+          required: true
+          description: ID do pedido (OP)
+          schema:
+            type: string
+            pattern: '^[0-9a-fA-F]{24}$'
+      responses:
+        "200":
+          description: Item liberado da expedição com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Item liberado da expedição com sucesso"
+                  pos:
+                    type: integer
+                    nullable: true
+                  op:
+                    type: string
+                  timestamp:
+                    type: string
+                    format: date-time
+        "400":
+          description: ID inválido ou item não está em expedição
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: Item não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   schemas:
     QueueItem:
@@ -361,7 +667,7 @@ components:
           description: Status atual do item
         stage:
           type: string
-          enum: [RECEIVED, PICKING, ASSEMBLY, QA, PACKING, EXPEDITION, DONE]
+          enum: [NA_FILA, PRODUZINDO, EXPEDICAO, ENTREGUE]
           description: Etapa atual do processamento
         progress:
           type: integer
@@ -393,7 +699,7 @@ components:
             properties:
               stage:
                 type: string
-                enum: [RECEIVED, PICKING, ASSEMBLY, QA, PACKING, EXPEDITION, DONE]
+                enum: [NA_FILA, PRODUZINDO, EXPEDICAO, ENTREGUE]
               startedAt:
                 type: string
                 format: date-time
@@ -418,6 +724,12 @@ components:
           type: string
           format: date-time
           description: Última atualização
+        estoquePos:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 26
+          description: Posição do estoque atribuída ao pedido (1-26)
       required: [payload, callbackUrl, status, stage, progress]
 
     Error:
@@ -434,8 +746,34 @@ components:
           format: date-time
           description: Momento do erro
 
+    Estoque:
+      type: object
+      properties:
+        pos:
+          type: integer
+          minimum: 1
+          maximum: 26
+          description: Posição do estoque (1-26)
+          example: 5
+        cor:
+          type: string
+          nullable: true
+          description: Cor da peça
+          example: "azul"
+        op:
+          type: string
+          nullable: true
+          description: |
+            ID do pedido que está usando a peça.
+            Se null, a peça está disponível.
+          example: "507f1f77bcf86cd799439011"
+
 tags:
   - name: Health
     description: Endpoints de verificação de saúde
   - name: Queue
     description: Gerenciamento de filas e processamento
+  - name: Estoque
+    description: Gerenciamento de estoque de peças (1-26 posições)
+  - name: Expedição
+    description: Gerenciamento de expedição de pedidos
