@@ -6,11 +6,8 @@ export enum ItemStatus {
 }
 
 export enum Stage {
-  RECEIVED = "RECEIVED",
-  PICKING = "PICKING",
-  ASSEMBLY = "ASSEMBLY",
-  QA = "QA",
-  PACKING = "PACKING",
-  EXPEDITION = "EXPEDITION",
-  DONE = "DONE",
+  NA_FILA = "NA_FILA",
+  PRODUZINDO = "PRODUZINDO",
+  EXPEDICAO = "EXPEDICAO",
+  ENTREGUE = "ENTREGUE",
 }

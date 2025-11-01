@@ -1,12 +1,20 @@
-import axios from 'axios';
-import { QueueItem, QueueItemDoc } from '../models/QueueItem';
-import { ItemStatus, Stage } from '../domain/enums';
-import { STAGE_DURATIONS, JITTER_RATIO, LOOP_INTERVAL_MS, CALLBACK_TIMEOUT_MS, MAX_CALLBACK_TRIES } from '../config/sim';
-import { withJitter } from '../utils/time';
+import axios from "axios";
+import { QueueItem, QueueItemDoc } from "../models/QueueItem";
+import { ItemStatus, Stage } from "../domain/enums";
+import {
+  STAGE_DURATIONS,
+  JITTER_RATIO,
+  LOOP_INTERVAL_MS,
+  CALLBACK_TIMEOUT_MS,
+  MAX_CALLBACK_TRIES,
+} from "../config/sim";
+import { withJitter } from "../utils/time";
 
 const STAGE_FLOW: Stage[] = [
-  Stage.RECEIVED, Stage.PICKING, Stage.ASSEMBLY,
-  Stage.QA, Stage.PACKING, Stage.EXPEDITION, Stage.DONE
+  Stage.NA_FILA,
+  Stage.PRODUZINDO,
+  Stage.EXPEDICAO,
+  Stage.ENTREGUE,
 ];
 
 const TOTAL_ITEM_SECONDS = Math.round(
@@ -21,7 +29,10 @@ export class Simulator {
 
   start() {
     if (!this.timer) {
-      this.timer = setInterval(() => this.tick().catch(console.error), LOOP_INTERVAL_MS);
+      this.timer = setInterval(
+        () => this.tick().catch(console.error),
+        LOOP_INTERVAL_MS
+      );
       // eslint-disable-next-line no-console
       console.log(`[sim] started @ ${this.nodeId}`);
     }
@@ -39,7 +50,9 @@ export class Simulator {
       ? await QueueItem.findById(this.processingId).lean()
       : await QueueItem.findOne({ status: ItemStatus.PROCESSING }).lean();
 
-    const queueSize = await QueueItem.countDocuments({ status: ItemStatus.PENDING });
+    const queueSize = await QueueItem.countDocuments({
+      status: ItemStatus.PENDING,
+    });
     const averageItemSeconds = TOTAL_ITEM_SECONDS;
     let currentItemEta = processing?.etaSeconds ?? null;
 
@@ -48,10 +61,12 @@ export class Simulator {
 
   async getPosition(id: string) {
     const item = await QueueItem.findById(id).lean();
-    if (!item) return { position: null, status: 'NOT_FOUND' };
+    if (!item) return { position: null, status: "NOT_FOUND" };
 
-    if (item.status === ItemStatus.COMPLETED) return { position: 0, status: item.status };
-    if (item.status === ItemStatus.PROCESSING) return { position: 0, status: item.status };
+    if (item.status === ItemStatus.COMPLETED)
+      return { position: 0, status: item.status };
+    if (item.status === ItemStatus.PROCESSING)
+      return { position: 0, status: item.status };
 
     const ahead = await QueueItem.countDocuments({
       status: ItemStatus.PENDING,
@@ -68,7 +83,7 @@ export class Simulator {
       if (!claimed) return;
 
       // preparar primeira etapa
-      await this.startStage(claimed, Stage.RECEIVED);
+      await this.startStage(claimed, Stage.NA_FILA);
       this.processingId = claimed.id;
       return;
     }
@@ -81,7 +96,10 @@ export class Simulator {
     }
 
     // Verificar se o item ainda está sendo processado por este simulador
-    if (item.status !== ItemStatus.PROCESSING || item.lockedBy !== this.nodeId) {
+    if (
+      item.status !== ItemStatus.PROCESSING ||
+      item.lockedBy !== this.nodeId
+    ) {
       // Item foi liberado ou está sendo processado por outro simulador
       this.processingId = null;
       this.currentStageDeadline = null;
@@ -107,9 +125,9 @@ export class Simulator {
   private async claimNext(): Promise<QueueItemDoc | null> {
     // Primeiro, tentar reclamar itens que estão PROCESSING mas não têm simulador ativo
     const orphanedItem = await QueueItem.findOneAndUpdate(
-      { 
+      {
         status: ItemStatus.PROCESSING,
-        lockedBy: { $exists: false }
+        lockedBy: { $exists: false },
       },
       {
         $set: {
@@ -133,12 +151,16 @@ export class Simulator {
       {
         $set: {
           status: ItemStatus.PROCESSING,
-          stage: Stage.RECEIVED,
+          stage: Stage.NA_FILA,
           lockedAt: new Date(),
           lockedBy: this.nodeId,
           stageStartedAt: new Date(),
-          history: [{ stage: Stage.RECEIVED, startedAt: new Date(), finishedAt: null }],
-          etaSeconds: Math.round(Object.values(STAGE_DURATIONS).reduce((a, b) => a + b, 0) / 1000),
+          history: [
+            { stage: Stage.NA_FILA, startedAt: new Date(), finishedAt: null },
+          ],
+          etaSeconds: Math.round(
+            Object.values(STAGE_DURATIONS).reduce((a, b) => a + b, 0) / 1000
+          ),
           progress: 0,
         },
       },
@@ -158,13 +180,15 @@ export class Simulator {
 
     item.stage = stage;
     item.stageStartedAt = new Date();
-    
+
     // Adicionar ao histórico se não existir
-    const existingHistory = item.history.find(h => h.stage === stage && !h.finishedAt);
+    const existingHistory = item.history.find(
+      (h) => h.stage === stage && !h.finishedAt
+    );
     if (!existingHistory) {
       item.history.push({ stage, startedAt: new Date(), finishedAt: null });
     }
-    
+
     await item.save();
   }
 
@@ -175,8 +199,8 @@ export class Simulator {
 
     // próxima etapa
     const next = this.nextStage(item.stage);
-    if (next === Stage.DONE) {
-      item.stage = Stage.DONE;
+    if (next === Stage.ENTREGUE) {
+      item.stage = Stage.ENTREGUE;
       item.status = ItemStatus.COMPLETED;
       item.progress = 100;
       item.etaSeconds = 0;
@@ -196,7 +220,11 @@ export class Simulator {
   private async updateProgress(item: QueueItemDoc) {
     const totalMs = Object.values(STAGE_DURATIONS).reduce((a, b) => a + b, 0);
     const elapsedMs = item.history.reduce((sum, h) => {
-      const end = h.finishedAt ? h.finishedAt.getTime() : (h.stage === item.stage ? Date.now() : 0);
+      const end = h.finishedAt
+        ? h.finishedAt.getTime()
+        : h.stage === item.stage
+        ? Date.now()
+        : 0;
       const start = h.startedAt?.getTime?.() ?? 0;
       return sum + Math.max(0, end - start);
     }, 0);

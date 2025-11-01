@@ -4,13 +4,10 @@ const isTest = process.env.NODE_ENV === 'test';
 
 // tempos em milissegundos (adaptavel aqui :p)
 export const STAGE_DURATIONS: Record<Stage, number> = {
-  [Stage.RECEIVED]: isTest ? 100 : 1000,
-  [Stage.PICKING]: isTest ? 200 : 5000,
-  [Stage.ASSEMBLY]: isTest ? 300 : 10000,
-  [Stage.QA]: isTest ? 150 : 4000,
-  [Stage.PACKING]: isTest ? 100 : 3000,
-  [Stage.EXPEDITION]: isTest ? 100 : 2000,
-  [Stage.DONE]: 0,
+  [Stage.NA_FILA]: 0,
+  [Stage.PRODUZINDO]: 60000,
+  [Stage.EXPEDICAO]: 0,
+  [Stage.ENTREGUE]: 0,
 };
 
 export const JITTER_RATIO = isTest ? 0.05 : 0.15; // +/- 5% em teste, 15% em produção
