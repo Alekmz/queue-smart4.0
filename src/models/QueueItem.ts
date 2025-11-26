@@ -21,6 +21,7 @@ export interface QueueItemDoc extends Document {
   lastCallbackAt?: Date | null;
   createdAt: Date; // Added createdAt field
   callbackTries?: number;
+  estoquePos?: number | null; // Posição do estoque atribuída (1-26)
 }
 
 const StageHistorySchema = new Schema<StageHistory>(
@@ -45,7 +46,7 @@ const QueueItemSchema = new Schema<QueueItemDoc>(
     stage: {
       type: String,
       enum: Object.values(Stage),
-      default: Stage.RECEIVED,
+      default: Stage.NA_FILA,
     },
     progress: { type: Number, default: 0 },
     etaSeconds: { type: Number, default: null },
@@ -55,6 +56,7 @@ const QueueItemSchema = new Schema<QueueItemDoc>(
     history: { type: [StageHistorySchema], default: [] },
     lastCallbackAt: { type: Date, default: null },
     callbackTries: { type: Number, default: 0 },
+    estoquePos: { type: Number, default: null, min: 1, max: 26 },
   },
   { timestamps: true }
 );
